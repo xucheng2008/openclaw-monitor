@@ -41,6 +41,8 @@ const Dashboard: React.FC = () => {
   const [stats, setStats] = useState<Stats | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [wsConnected, setWsConnected] = useState(false)
+  const [wsStatus, setWsStatus] = useState<'connected' | 'disconnected' | 'reconnecting'>('disconnected')
 
   const fetchData = async () => {
     try {
@@ -71,11 +73,66 @@ const Dashboard: React.FC = () => {
     }
   }
 
+  // WebSocket 连接
   useEffect(() => {
-    fetchData()
-    // 每 30 秒自动刷新
-    const interval = setInterval(fetchData, 30000)
-    return () => clearInterval(interval)
+    let ws: WebSocket | null = null
+    let reconnectTimeout: NodeJS.Timeout | null = null
+
+    const connect = () => {
+      setWsStatus('reconnecting')
+      ws = new WebSocket(`ws://localhost:8080/ws`)
+
+      ws.onopen = () => {
+        console.log('✅ WebSocket 已连接')
+        setWsConnected(true)
+        setWsStatus('connected')
+      }
+
+      ws.onmessage = (event) => {
+        try {
+          const message = JSON.parse(event.data)
+          
+          if (message.type === 'init') {
+            const { agents, tasks, stats } = message.data
+            setAgents(agents)
+            setTasks(tasks)
+            setStats(stats)
+            setLoading(false)
+          } else if (message.type === 'update') {
+            const { agents, tasks, stats } = message.data
+            setAgents(agents)
+            setTasks(tasks)
+            setStats(stats)
+            console.log('📊 数据已更新')
+          } else if (message.type === 'notification') {
+            console.log('🔔 通知:', message.notification)
+          }
+        } catch (err) {
+          console.error('解析 WebSocket 消息失败:', err)
+        }
+      }
+
+      ws.onclose = () => {
+        console.log('❌ WebSocket 已断开')
+        setWsConnected(false)
+        setWsStatus('disconnected')
+        
+        // 5 秒后重连
+        reconnectTimeout = setTimeout(connect, 5000)
+      }
+
+      ws.onerror = (err) => {
+        console.error('WebSocket 错误:', err)
+        ws?.close()
+      }
+    }
+
+    connect()
+
+    return () => {
+      if (ws) ws.close()
+      if (reconnectTimeout) clearTimeout(reconnectTimeout)
+    }
   }, [])
 
   const statusColors: Record<string, string> = {
@@ -157,7 +214,13 @@ const Dashboard: React.FC = () => {
 
       {/* 顶部操作栏 */}
       <div style={{ marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h1 style={{ color: '#fff', margin: 0 }}>📊 OpenClaw Monitor</h1>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+          <h1 style={{ color: '#fff', margin: 0 }}>📊 OpenClaw Monitor</h1>
+          {/* WebSocket 状态指示器 */}
+          <Tag color={wsStatus === 'connected' ? 'green' : wsStatus === 'reconnecting' ? 'orange' : 'red'}>
+            {wsStatus === 'connected' ? '🟢 实时连接' : wsStatus === 'reconnecting' ? '🟠 重连中' : '🔴 未连接'}
+          </Tag>
+        </div>
         <Space>
           <Button onClick={fetchData} loading={loading}>
             <ReloadOutlined /> 刷新

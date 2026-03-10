@@ -1,13 +1,19 @@
 import express from 'express'
 import cors from 'cors'
+import { createServer } from 'http'
 import { getAgents, getTasks, getStats } from './services/openclaw'
 import { getIssues, getTaskIssues, getRecentActivity, syncData } from './services/github'
+import { wsService } from './services/websocket'
 
 const app = express()
+const server = createServer(app)
 const PORT = process.env.PORT || 8080
 
 app.use(cors())
 app.use(express.json())
+
+// 初始化 WebSocket 服务
+wsService.init(server)
 
 // 内存缓存（后续替换为 Redis）
 let cachedData: any = {}
@@ -146,7 +152,8 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() })
 })
 
-app.listen(PORT, () => {
+server.listen(PORT, () => {
   console.log(`🚀 OpenClaw Monitor API 运行在 http://localhost:${PORT}`)
   console.log(`📊 健康检查：http://localhost:${PORT}/health`)
+  console.log(`🔌 WebSocket: ws://localhost:${PORT}/ws`)
 })
