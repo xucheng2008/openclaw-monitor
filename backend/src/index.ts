@@ -5,6 +5,7 @@ import { getAgents, getTasks, getStats } from './services/openclaw'
 import { getIssues, getTaskIssues, getRecentActivity, syncData } from './services/github'
 import { wsService } from './services/websocket'
 import { getLogs, fetchAgentLogs, fetchSystemLogs, addLog } from './services/logs'
+import { getTokenStats, recordTokenUsage, syncTokenUsage, exportTokenReport } from './services/token-stats'
 
 const app = express()
 const server = createServer(app)
@@ -196,6 +197,51 @@ app.post('/api/logs', (req, res) => {
     res.json(log)
   } catch (error) {
     res.status(500).json({ error: '添加日志失败' })
+  }
+})
+
+// Token 统计 API
+app.get('/api/token/stats', (req, res) => {
+  try {
+    const { agent, model, hours } = req.query
+    const stats = getTokenStats({
+      agent: agent as string,
+      model: model as string,
+      hours: hours ? parseInt(hours as string) : undefined,
+    })
+    res.json(stats)
+  } catch (error) {
+    res.status(500).json({ error: '获取 Token 统计失败' })
+  }
+})
+
+app.post('/api/token/record', (req, res) => {
+  try {
+    const { agent, model, inputTokens, outputTokens, totalTokens } = req.body
+    const record = recordTokenUsage({ agent, model, inputTokens, outputTokens, totalTokens })
+    res.json(record)
+  } catch (error) {
+    res.status(500).json({ error: '记录 Token 使用失败' })
+  }
+})
+
+app.post('/api/token/sync', async (req, res) => {
+  try {
+    const usage = await syncTokenUsage()
+    res.json({ success: true, count: usage.length })
+  } catch (error) {
+    res.status(500).json({ error: '同步 Token 数据失败' })
+  }
+})
+
+app.get('/api/token/export', (req, res) => {
+  try {
+    const format = (req.query.format as string) || 'json'
+    const report = exportTokenReport(format as any)
+    res.type(format === 'csv' ? 'text/csv' : 'application/json')
+    res.send(report)
+  } catch (error) {
+    res.status(500).json({ error: '导出报告失败' })
   }
 })
 

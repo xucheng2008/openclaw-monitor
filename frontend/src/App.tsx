@@ -1,9 +1,10 @@
 import { ConfigProvider, Layout, theme, Menu } from 'antd'
-import { DashboardOutlined, FileTextOutlined, BarChartOutlined } from '@ant-design/icons'
+import { DashboardOutlined, FileTextOutlined, BarChartOutlined, DollarOutlined } from '@ant-design/icons'
 import { BrowserRouter, Routes, Route, Link, useLocation } from 'react-router-dom'
 import Dashboard from './pages/Dashboard'
 import Logs from './pages/Logs'
 import TaskDetail from './pages/TaskDetail'
+import TokenStats from './pages/TokenStats'
 
 const { Header, Content, Sider } = Layout
 
@@ -25,6 +26,11 @@ const Navigation: React.FC = () => {
       key: '/tasks',
       icon: <BarChartOutlined />,
       label: <Link to="/tasks">任务列表</Link>,
+    },
+    {
+      key: '/token-stats',
+      icon: <DollarOutlined />,
+      label: <Link to="/token-stats">Token 统计</Link>,
     },
   ]
 
@@ -61,6 +67,7 @@ function AppContent() {
             <Route path="/logs" element={<Logs />} />
             <Route path="/tasks/:id" element={<TaskDetail />} />
             <Route path="/tasks" element={<Dashboard />} />
+            <Route path="/token-stats" element={<TokenStats />} />
           </Routes>
         </Content>
       </Layout>
