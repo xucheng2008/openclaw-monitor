@@ -1,0 +1,118 @@
+name: PR Auto Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  pr-check:
+    name: PR Quality Check
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Check PR title format
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+            const title = pr.title;
+            
+            // 检查标题格式：feat:, fix:, docs:, style:, refactor:, test:, chore:
+            const conventionalPattern = /^(feat|fix|docs|style|refactor|test|chore)(\(.+\))?:/;
+            
+            if (!conventionalPattern.test(title)) {
+              core.setFailed('PR 标题不符合约定式提交规范');
+              console.log('请使用格式：feat: 添加新功能 或 fix: 修复 bug');
+            }
+
+      - name: Check for merge conflicts
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+            if (pr.mergeable === false) {
+              core.setFailed('PR 存在合并冲突，请先解决冲突');
+            }
+
+      - name: Check changed files
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { data: files } = await github.rest.pulls.listFiles({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number
+            });
+            
+            // 检查是否修改了敏感文件
+            const sensitiveFiles = ['.env', '.env.example', 'package-lock.json'];
+            for (const file of files) {
+              if (sensitiveFiles.includes(file.filename)) {
+                console.log(`⚠️ 警告：修改了敏感文件 ${file.filename}`);
+              }
+            }
+
+  auto-comment:
+    name: Auto Comment on PR
+    runs-on: ubuntu-latest
+    needs: pr-check
+    
+    steps:
+      - name: Add PR comment
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: `👋 感谢提交 PR！
+              
+              ## 自动检查清单
+              - [ ] 代码已通过 lint 检查
+              - [ ] 已添加/更新测试
+              - [ ] 文档已更新
+              - [ ] 无合并冲突
+              
+              ## 下一步
+              1. 等待 CI 测试完成
+              2. 等待代码 Review
+              3. 合并到主分支
+              
+              > 此评论由机器人自动生成`
+            });
+
+      - name: Request review from team
+        uses: actions/github-script@v7
+        with:
+          script: |
+            // 根据文件变化自动请求 Review
+            const { data: files } = await github.rest.pulls.listFiles({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number
+            });
+            
+            const reviewers = [];
+            
+            // 检查是否有特定文件需要特定人员 Review
+            for (const file of files) {
+              if (file.filename.includes('.github/workflows/')) {
+                reviewers.push('ci-owner'); // 替换为实际用户
+              }
+              if (file.filename.includes('package.json')) {
+                reviewers.push('deps-owner'); // 替换为实际用户
+              }
+            }
+            
+            if (reviewers.length > 0) {
+              await github.rest.pulls.requestReviewers({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: context.issue.number,
+                reviewers: [...new Set(reviewers)]
+              });
+            }

@@ -1,0 +1,16 @@
+{
+  "name": "openclaw-monitor",
+  "version": "1.0.0",
+  "description": "OpenClaw 可视化监控面板 - 监控 Agent 状态、任务追踪和数据分析",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node --watch index.js",
+    "test": "echo \"Error: no test specified\" && exit 0",
+    "lint": "echo \"Error: no lint specified\" && exit 0",
+    "build": "echo \"Error: no build specified\" && exit 0"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "MIT"
+}

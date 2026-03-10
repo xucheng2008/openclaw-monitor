@@ -1,0 +1,103 @@
+name: Auto Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get version from tag
+        id: get_version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+
+      - name: Generate changelog
+        uses: actions/github-script@v7
+        id: changelog
+        with:
+          script: |
+            const { data: commits } = await github.rest.repos.listCommits({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              sha: context.sha,
+              per_page: 50
+            });
+            
+            let changelog = '## 更新内容\n\n';
+            
+            const featCommits = commits.filter(c => c.commit.message.startsWith('feat'));
+            const fixCommits = commits.filter(c => c.commit.message.startsWith('fix'));
+            const otherCommits = commits.filter(c => !c.commit.message.startsWith('feat') && !c.commit.message.startsWith('fix'));
+            
+            if (featCommits.length > 0) {
+              changelog += '### 🎉 新功能\n\n';
+              featCommits.forEach(c => {
+                const msg = c.commit.message.split('\n')[0];
+                changelog += `- ${msg}\n`;
+              });
+              changelog += '\n';
+            }
+            
+            if (fixCommits.length > 0) {
+              changelog += '### 🐛 Bug 修复\n\n';
+              fixCommits.forEach(c => {
+                const msg = c.commit.message.split('\n')[0];
+                changelog += `- ${msg}\n`;
+              });
+              changelog += '\n';
+            }
+            
+            if (otherCommits.length > 0) {
+              changelog += '### 📝 其他更新\n\n';
+              otherCommits.slice(0, 10).forEach(c => {
+                const msg = c.commit.message.split('\n')[0];
+                changelog += `- ${msg}\n`;
+              });
+            }
+            
+            return changelog;
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          name: Release v${{ steps.get_version.outputs.VERSION }}
+          body: ${{ steps.changelog.outputs.result }}
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  notify:
+    name: Notify Release
+    runs-on: ubuntu-latest
+    needs: release
+    
+    steps:
+      - name: Send notification
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const release = context.payload.release;
+            
+            // 创建 Issue 通知
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `🎉 新版本发布：${release.tag_name}`,
+              body: `新版本 **${release.tag_name}** 已发布！
+              
+              ${release.body}
+              
+              [查看完整 Release](${release.html_url})`,
+              labels: ['release', 'announcement']
+            });
