@@ -6,6 +6,7 @@ import { getIssues, getTaskIssues, getRecentActivity, syncData } from './service
 import { wsService } from './services/websocket'
 import { getLogs, fetchAgentLogs, fetchSystemLogs, addLog } from './services/logs'
 import { getTokenStats, recordTokenUsage, syncTokenUsage, exportTokenReport } from './services/token-stats'
+import { getAlerts, acknowledgeAlert, getRules, addRule, updateRule, deleteRule, checkRules, getAlertStats } from './services/alerts'
 
 const app = express()
 const server = createServer(app)
@@ -244,6 +245,82 @@ app.get('/api/token/export', (req, res) => {
     res.status(500).json({ error: '导出报告失败' })
   }
 })
+
+// 告警 API
+app.get('/api/alerts', (req, res) => {
+  try {
+    const { level, type, acknowledged, limit } = req.query
+    const alerts = getAlerts({
+      level: level as any,
+      type: type as any,
+      acknowledged: acknowledged === 'true',
+      limit: limit ? parseInt(limit as string) : 50,
+    })
+    res.json(alerts)
+  } catch (error) {
+    res.status(500).json({ error: '获取告警失败' })
+  }
+})
+
+app.get('/api/alerts/stats', (req, res) => {
+  try {
+    const stats = getAlertStats()
+    res.json(stats)
+  } catch (error) {
+    res.status(500).json({ error: '获取告警统计失败' })
+  }
+})
+
+app.post('/api/alerts/:id/acknowledge', (req, res) => {
+  try {
+    const success = acknowledgeAlert(req.params.id)
+    res.json({ success })
+  } catch (error) {
+    res.status(500).json({ error: '确认告警失败' })
+  }
+})
+
+app.get('/api/alerts/rules', (req, res) => {
+  try {
+    const rules = getRules()
+    res.json(rules)
+  } catch (error) {
+    res.status(500).json({ error: '获取告警规则失败' })
+  }
+})
+
+app.post('/api/alerts/rules', (req, res) => {
+  try {
+    const { name, type, enabled, threshold, condition, channels, cooldownMinutes } = req.body
+    const rule = addRule({ name, type, enabled, threshold, condition, channels, cooldownMinutes })
+    res.json(rule)
+  } catch (error) {
+    res.status(500).json({ error: '添加告警规则失败' })
+  }
+})
+
+app.put('/api/alerts/rules/:id', (req, res) => {
+  try {
+    const success = updateRule(req.params.id, req.body)
+    res.json({ success })
+  } catch (error) {
+    res.status(500).json({ error: '更新告警规则失败' })
+  }
+})
+
+app.delete('/api/alerts/rules/:id', (req, res) => {
+  try {
+    const success = deleteRule(req.params.id)
+    res.json({ success })
+  } catch (error) {
+    res.status(500).json({ error: '删除告警规则失败' })
+  }
+})
+
+// 定时检查告警规则（每 5 分钟）
+setInterval(() => {
+  checkRules({})
+}, 5 * 60 * 1000)
 
 server.listen(PORT, () => {
   console.log(`🚀 OpenClaw Monitor API 运行在 http://localhost:${PORT}`)

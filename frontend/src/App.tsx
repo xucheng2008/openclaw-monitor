@@ -1,5 +1,5 @@
 import { ConfigProvider, Layout, theme, Menu } from 'antd'
-import { DashboardOutlined, FileTextOutlined, BarChartOutlined, DollarOutlined, TrophyOutlined } from '@ant-design/icons'
+import { DashboardOutlined, FileTextOutlined, BarChartOutlined, DollarOutlined, TrophyOutlined, BellOutlined } from '@ant-design/icons'
 import { BrowserRouter, Routes, Route, Link, useLocation } from 'react-router-dom'
 import Dashboard from './pages/Dashboard'
 import Logs from './pages/Logs'
@@ -7,6 +7,7 @@ import TaskDetail from './pages/TaskDetail'
 import TokenStats from './pages/TokenStats'
 import CostAnalysis from './pages/CostAnalysis'
 import EfficiencyReport from './pages/EfficiencyReport'
+import Alerts from './pages/Alerts'
 
 const { Header, Content, Sider } = Layout
 
@@ -43,6 +44,11 @@ const Navigation: React.FC = () => {
       key: '/efficiency',
       icon: <TrophyOutlined />,
       label: <Link to="/efficiency">效率报表</Link>,
+    },
+    {
+      key: '/alerts',
+      icon: <BellOutlined />,
+      label: <Link to="/alerts">告警中心</Link>,
     },
   ]
 
@@ -82,6 +88,7 @@ function AppContent() {
             <Route path="/token-stats" element={<TokenStats />} />
             <Route path="/cost-analysis" element={<CostAnalysis />} />
             <Route path="/efficiency" element={<EfficiencyReport />} />
+            <Route path="/alerts" element={<Alerts />} />
           </Routes>
         </Content>
       </Layout>
