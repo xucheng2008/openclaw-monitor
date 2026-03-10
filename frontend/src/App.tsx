@@ -1,10 +1,12 @@
 import { ConfigProvider, Layout, theme, Menu } from 'antd'
-import { DashboardOutlined, FileTextOutlined, BarChartOutlined, DollarOutlined } from '@ant-design/icons'
+import { DashboardOutlined, FileTextOutlined, BarChartOutlined, DollarOutlined, TrophyOutlined } from '@ant-design/icons'
 import { BrowserRouter, Routes, Route, Link, useLocation } from 'react-router-dom'
 import Dashboard from './pages/Dashboard'
 import Logs from './pages/Logs'
 import TaskDetail from './pages/TaskDetail'
 import TokenStats from './pages/TokenStats'
+import CostAnalysis from './pages/CostAnalysis'
+import EfficiencyReport from './pages/EfficiencyReport'
 
 const { Header, Content, Sider } = Layout
 
@@ -31,6 +33,16 @@ const Navigation: React.FC = () => {
       key: '/token-stats',
       icon: <DollarOutlined />,
       label: <Link to="/token-stats">Token 统计</Link>,
+    },
+    {
+      key: '/cost-analysis',
+      icon: <DollarOutlined />,
+      label: <Link to="/cost-analysis">成本分析</Link>,
+    },
+    {
+      key: '/efficiency',
+      icon: <TrophyOutlined />,
+      label: <Link to="/efficiency">效率报表</Link>,
     },
   ]
 
@@ -68,6 +80,8 @@ function AppContent() {
             <Route path="/tasks/:id" element={<TaskDetail />} />
             <Route path="/tasks" element={<Dashboard />} />
             <Route path="/token-stats" element={<TokenStats />} />
+            <Route path="/cost-analysis" element={<CostAnalysis />} />
+            <Route path="/efficiency" element={<EfficiencyReport />} />
           </Routes>
         </Content>
       </Layout>
