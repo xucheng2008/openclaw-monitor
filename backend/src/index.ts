@@ -4,6 +4,7 @@ import { createServer } from 'http'
 import { getAgents, getTasks, getStats } from './services/openclaw'
 import { getIssues, getTaskIssues, getRecentActivity, syncData } from './services/github'
 import { wsService } from './services/websocket'
+import { getLogs, fetchAgentLogs, fetchSystemLogs, addLog } from './services/logs'
 
 const app = express()
 const server = createServer(app)
@@ -150,6 +151,52 @@ app.post('/api/github/sync', async (req, res) => {
 // 健康检查
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() })
+})
+
+// 日志 API
+app.get('/api/logs', (req, res) => {
+  try {
+    const { level, agent, limit, before } = req.query
+    const logs = getLogs({
+      level: level as any,
+      agent: agent as string,
+      limit: limit ? parseInt(limit as string) : 100,
+      before: before as string,
+    })
+    res.json(logs)
+  } catch (error) {
+    res.status(500).json({ error: '获取日志失败' })
+  }
+})
+
+app.get('/api/logs/agent', async (req, res) => {
+  try {
+    const { agent, limit } = req.query
+    const logs = await fetchAgentLogs(agent as string, limit ? parseInt(limit as string) : 50)
+    res.json(logs)
+  } catch (error) {
+    res.status(500).json({ error: '获取 Agent 日志失败' })
+  }
+})
+
+app.get('/api/logs/system', async (req, res) => {
+  try {
+    const limit = req.query.limit ? parseInt(req.query.limit as string) : 50
+    const logs = await fetchSystemLogs(limit)
+    res.json(logs)
+  } catch (error) {
+    res.status(500).json({ error: '获取系统日志失败' })
+  }
+})
+
+app.post('/api/logs', (req, res) => {
+  try {
+    const { level, agent, message, source } = req.body
+    const log = addLog({ level, agent, message, source })
+    res.json(log)
+  } catch (error) {
+    res.status(500).json({ error: '添加日志失败' })
+  }
 })
 
 server.listen(PORT, () => {
