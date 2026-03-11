@@ -1,5 +1,5 @@
 import { Card, Row, Col, Statistic, Table, Tag, Select, Button, Space, Typography, Progress } from 'antd'
-import { ThunderboltOutlined, DollarOutlined, TrendUpOutlined } from '@ant-design/icons'
+import { ThunderboltOutlined, DollarOutlined, RiseOutlined } from '@ant-design/icons'
 import { useState, useEffect } from 'react'
 import { Line, Bar, Pie } from '@ant-design/plots'
 
@@ -130,7 +130,7 @@ const TokenStatsPage: React.FC = () => {
             <Statistic
               title="Agent 数量"
               value={Object.keys(stats.byAgent).length}
-              prefix={<TrendUpOutlined />}
+              prefix={<RiseOutlined />}
               valueStyle={{ color: '#faad14' }}
             />
           </Card>

@@ -1,5 +1,5 @@
 import { Card, Row, Col, Table, Tag, Button, Space, Typography, DatePicker, Statistic } from 'antd'
-import { DollarOutlined, TrendUpOutlined, ThunderboltOutlined } from '@ant-design/icons'
+import { DollarOutlined, RiseOutlined, ThunderboltOutlined } from '@ant-design/icons'
 import { useState, useEffect } from 'react'
 import { Column, Line, Area } from '@ant-design/plots'
 import dayjs from 'dayjs'
@@ -141,7 +141,7 @@ const CostAnalysis: React.FC = () => {
             <Statistic
               title="日均成本"
               value={stats.totalCost / 7}
-              prefix={<TrendUpOutlined />}
+              prefix={<RiseOutlined />}
               valueStyle={{ color: '#1677ff' }}
               suffix="元/天"
               precision={2}
