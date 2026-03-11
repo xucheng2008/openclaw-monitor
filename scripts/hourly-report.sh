@@ -4,13 +4,20 @@
 
 set -e
 
+# 设置 PATH
+export PATH="/Users/xc/.nvm/versions/node/v25.8.0/bin:$PATH"
+export PATH="/opt/homebrew/bin:$PATH"
+
 REPO="xucheng2008/openclaw-monitor"
 WORKSPACE="/Users/xc/.openclaw/workspace/agents-workspace/boss/github-automation/scripts/openclaw-monitor"
+REPORT_LOG="/tmp/openclaw-monitor-hourly.log"
 
-echo "## 📊 OpenClaw Monitor Phase 5 进度报告"
-echo ""
-echo "**报告时间**: $(date '+%Y-%m-%d %H:%M:%S')"
-echo ""
+# 生成报告内容
+REPORT="## 📊 OpenClaw Monitor Phase 5 进度报告
+
+**报告时间**: $(date '+%Y-%m-%d %H:%M:%S')
+
+"
 
 # 获取 Issue 状态
 echo "### 任务状态"
@@ -57,8 +64,19 @@ echo "### 整体进度"
 echo ""
 TOTAL_ISSUES=$(gh issue list --repo $REPO --label "task" --json number | jq 'length')
 DONE_ISSUES=$(gh issue list --repo $REPO --label "status:done" --json number | jq 'length')
-PROGRESS=$(echo "scale=0; $DONE_ISSUES * 100 / $TOTAL_ISSUES" | bc)
+PROGRESS=$(echo "scale=0; $DONE_ISSUES * 100 / $TOTAL_ISSUES" | bc 2>/dev/null || echo "0")
 echo "- **总任务数**: $TOTAL_ISSUES"
 echo "- **已完成**: $DONE_ISSUES"
 echo "- **进度**: ${PROGRESS}%"
 echo ""
+
+# 保存日志
+echo "$REPORT" > "$REPORT_LOG"
+
+# 主动发送通知（通过 OpenClaw message 工具）
+# 使用 sessions_send 发送到 boss session
+echo "发送通知..."
+openclaw message send --target "user:ou_6918630db432c008cd06fad18329973a" --message "$REPORT" 2>/dev/null || \
+  echo "通知发送失败，日志已保存到 $REPORT_LOG"
+
+echo "✓ 报告完成：$REPORT_LOG"

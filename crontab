@@ -1,0 +1,8 @@
+# OpenClaw Monitor 每小时进度报告
+# 每小时整点自动执行
+
+SHELL=/bin/zsh
+PATH=/Users/xc/.nvm/versions/node/v25.8.0/bin:/usr/local/bin:/usr/bin:/bin
+
+# 每小时整点执行进度报告
+0 * * * * /Users/xc/.openclaw/workspace/agents-workspace/boss/github-automation/scripts/openclaw-monitor/scripts/hourly-report.sh >> /tmp/openclaw-monitor-hourly.log 2>&1
