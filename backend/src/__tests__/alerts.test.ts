@@ -24,12 +24,12 @@ describe('Alerts API Routes', () => {
       const mockAlerts = [
         {
           id: 'alert1',
-          level: 'error',
-          type: 'agent-down',
+          type: 'agent_offline' as const,
+          level: 'error' as const,
+          title: 'Agent Down',
           message: 'Agent is down',
           timestamp: new Date().toISOString(),
           acknowledged: false,
-          agentId: 'agent1',
         },
       ];
       
@@ -42,7 +42,7 @@ describe('Alerts API Routes', () => {
       expect(alertsService.getAlerts).toHaveBeenCalledWith({
         level: undefined,
         type: undefined,
-        acknowledged: undefined,
+        acknowledged: false, // Default to false
         limit: 50,
       });
     });
@@ -51,24 +51,24 @@ describe('Alerts API Routes', () => {
       const mockAlerts = [
         {
           id: 'alert1',
-          level: 'warning',
-          type: 'high-cpu',
+          type: 'token_limit' as const,
+          level: 'warning' as const,
+          title: 'High CPU Usage',
           message: 'High CPU usage',
           timestamp: new Date().toISOString(),
           acknowledged: true,
-          agentId: 'agent1',
         },
       ];
       
       (alertsService.getAlerts as jest.Mock).mockReturnValue(mockAlerts);
 
-      const response = await request(app).get('/api/alerts?level=warning&type=high-cpu&acknowledged=true&limit=10');
+      const response = await request(app).get('/api/alerts?level=warning&type=token_limit&acknowledged=true&limit=10');
 
       expect(response.status).toBe(200);
       expect(response.body).toEqual(mockAlerts);
       expect(alertsService.getAlerts).toHaveBeenCalledWith({
         level: 'warning',
-        type: 'high-cpu',
+        type: 'token_limit',
         acknowledged: true,
         limit: 10,
       });
@@ -90,7 +90,6 @@ describe('Alerts API Routes', () => {
     it('should return alert stats successfully', async () => {
       const mockStats = {
         total: 10,
-        acknowledged: 3,
         unacknowledged: 7,
         byLevel: {
           error: 5,
@@ -98,9 +97,9 @@ describe('Alerts API Routes', () => {
           info: 2,
         },
         byType: {
-          'agent-down': 3,
-          'high-cpu': 2,
-          'memory-warning': 5,
+          agent_offline: 3,
+          high_cpu: 2,
+          memory_warning: 5,
         },
       };
       
@@ -153,10 +152,10 @@ describe('Alerts API Routes', () => {
         {
           id: 'rule1',
           name: 'Agent Down Alert',
-          type: 'agent-down',
+          type: 'agent_offline' as const,
           enabled: true,
           threshold: 5,
-          condition: 'status === "down"',
+          condition: 'gt' as const,
           channels: ['email', 'slack'],
           cooldownMinutes: 10,
           createdAt: new Date().toISOString(),
@@ -189,10 +188,10 @@ describe('Alerts API Routes', () => {
       const newRule = {
         id: 'rule2',
         name: 'High CPU Alert',
-        type: 'high-cpu',
+        type: 'token_limit' as const,
         enabled: true,
         threshold: 80,
-        condition: 'cpu > 80',
+        condition: 'gt' as const,
         channels: ['email'],
         cooldownMinutes: 5,
         createdAt: new Date().toISOString(),
@@ -203,10 +202,10 @@ describe('Alerts API Routes', () => {
 
       const ruleData = {
         name: 'High CPU Alert',
-        type: 'high-cpu',
+        type: 'token_limit',
         enabled: true,
         threshold: 80,
-        condition: 'cpu > 80',
+        condition: 'gt',
         channels: ['email'],
         cooldownMinutes: 5,
       };
@@ -225,10 +224,10 @@ describe('Alerts API Routes', () => {
 
       const ruleData = {
         name: 'High CPU Alert',
-        type: 'high-cpu',
+        type: 'token_limit',
         enabled: true,
         threshold: 80,
-        condition: 'cpu > 80',
+        condition: 'gt',
         channels: ['email'],
         cooldownMinutes: 5,
       };
@@ -295,372 +294,6 @@ describe('Alerts API Routes', () => {
 
       expect(response.status).toBe(500);
       expect(response.body).toEqual({ error: '删除告警规则失败' });
-    });
-  });
-});
-
-describe('Alerts Service Layer', () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
-  });
-
-  describe('getAlerts', () => {
-    it('should filter alerts by level', () => {
-      const allAlerts = [
-        { id: '1', level: 'error', acknowledged: false },
-        { id: '2', level: 'warning', acknowledged: false },
-        { id: '3', level: 'error', acknowledged: true },
-      ];
-      
-      // Mock the underlying data source
-      jest.spyOn(alertsService, 'getAlerts').mockImplementation((options: any) => {
-        let filtered = allAlerts;
-        if (options.level) {
-          filtered = filtered.filter(a => a.level === options.level);
-        }
-        if (options.acknowledged !== undefined) {
-          filtered = filtered.filter(a => a.acknowledged === options.acknowledged);
-        }
-        return filtered.slice(0, options.limit || 50);
-      });
-
-      const result = alertsService.getAlerts({ level: 'error' });
-      
-      expect(result).toHaveLength(2);
-      expect(result.every(a => a.level === 'error')).toBe(true);
-    });
-
-    it('should filter alerts by acknowledged status', () => {
-      const allAlerts = [
-        { id: '1', level: 'error', acknowledged: false },
-        { id: '2', level: 'warning', acknowledged: false },
-        { id: '3', level: 'error', acknowledged: true },
-      ];
-      
-      jest.spyOn(alertsService, 'getAlerts').mockImplementation((options: any) => {
-        let filtered = allAlerts;
-        if (options.level) {
-          filtered = filtered.filter(a => a.level === options.level);
-        }
-        if (options.acknowledged !== undefined) {
-          filtered = filtered.filter(a => a.acknowledged === options.acknowledged);
-        }
-        return filtered.slice(0, options.limit || 50);
-      });
-
-      const result = alertsService.getAlerts({ acknowledged: false });
-      
-      expect(result).toHaveLength(2);
-      expect(result.every(a => !a.acknowledged)).toBe(true);
-    });
-  });
-
-  describe('getAlertStats', () => {
-    it('should calculate correct statistics', () => {
-      const alerts = [
-        { id: '1', level: 'error', type: 'agent-down', acknowledged: false },
-        { id: '2', level: 'warning', type: 'high-cpu', acknowledged: false },
-        { id: '3', level: 'error', type: 'agent-down', acknowledged: true },
-        { id: '4', level: 'info', type: 'memory-warning', acknowledged: false },
-        { id: '5', level: 'warning', type: 'memory-warning', acknowledged: true },
-      ];
-      
-      jest.spyOn(alertsService, 'getAlertStats').mockImplementation(() => {
-        const total = alerts.length;
-        const acknowledged = alerts.filter(a => a.acknowledged).length;
-        const unacknowledged = total - acknowledged;
-        
-        const byLevel: Record<string, number> = {};
-        alerts.forEach(a => {
-          byLevel[a.level] = (byLevel[a.level] || 0) + 1;
-        });
-        
-        const byType: Record<string, number> = {};
-        alerts.forEach(a => {
-          byType[a.type] = (byType[a.type] || 0) + 1;
-        });
-        
-        return { total, acknowledged, unacknowledged, byLevel, byType };
-      });
-
-      const stats = alertsService.getAlertStats();
-      
-      expect(stats.total).toBe(5);
-      expect(stats.acknowledged).toBe(2);
-      expect(stats.unacknowledged).toBe(3);
-      expect(stats.byLevel.error).toBe(2);
-      expect(stats.byLevel.warning).toBe(2);
-      expect(stats.byLevel.info).toBe(1);
-      expect(stats.byType['agent-down']).toBe(2);
-      expect(stats.byType['high-cpu']).toBe(1);
-      expect(stats.byType['memory-warning']).toBe(2);
-    });
-  });
-
-  describe('acknowledgeAlert', () => {
-    it('should acknowledge existing alert', () => {
-      const alerts = [
-        { id: '1', level: 'error', acknowledged: false },
-        { id: '2', level: 'warning', acknowledged: false },
-      ];
-      
-      jest.spyOn(alertsService, 'acknowledgeAlert').mockImplementation((id: string) => {
-        const alert = alerts.find(a => a.id === id);
-        if (alert) {
-          alert.acknowledged = true;
-          return true;
-        }
-        return false;
-      });
-
-      const result = alertsService.acknowledgeAlert('1');
-      
-      expect(result).toBe(true);
-      expect(alerts[0].acknowledged).toBe(true);
-    });
-
-    it('should return false for non-existent alert', () => {
-      const alerts = [
-        { id: '1', level: 'error', acknowledged: false },
-        { id: '2', level: 'warning', acknowledged: false },
-      ];
-      
-      jest.spyOn(alertsService, 'acknowledgeAlert').mockImplementation((id: string) => {
-        const alert = alerts.find(a => a.id === id);
-        if (alert) {
-          alert.acknowledged = true;
-          return true;
-        }
-        return false;
-      });
-
-      const result = alertsService.acknowledgeAlert('3');
-      
-      expect(result).toBe(false);
-    });
-  });
-
-  describe('addRule', () => {
-    it('should add new rule with generated ID', () => {
-      const rules: any[] = [];
-      
-      jest.spyOn(alertsService, 'addRule').mockImplementation((ruleData: any) => {
-        const rule = {
-          ...ruleData,
-          id: `rule-${Date.now()}`,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        };
-        rules.push(rule);
-        return rule;
-      });
-
-      const ruleData = {
-        name: 'Test Rule',
-        type: 'test-type',
-        enabled: true,
-        threshold: 10,
-        condition: 'test > 10',
-        channels: ['email'],
-        cooldownMinutes: 5,
-      };
-
-      const result = alertsService.addRule(ruleData);
-      
-      expect(result).toHaveProperty('id');
-      expect(result.name).toBe('Test Rule');
-      expect(result.type).toBe('test-type');
-      expect(rules).toHaveLength(1);
-    });
-  });
-
-  describe('updateRule', () => {
-    it('should update existing rule', () => {
-      const rules = [
-        {
-          id: 'rule1',
-          name: 'Old Name',
-          enabled: true,
-          threshold: 10,
-          updatedAt: new Date().toISOString(),
-        },
-      ];
-      
-      jest.spyOn(alertsService, 'updateRule').mockImplementation((id: string, updates: any) => {
-        const rule = rules.find(r => r.id === id);
-        if (rule) {
-          Object.assign(rule, updates);
-          rule.updatedAt = new Date().toISOString();
-          return true;
-        }
-        return false;
-      });
-
-      const result = alertsService.updateRule('rule1', { name: 'New Name', enabled: false });
-      
-      expect(result).toBe(true);
-      expect(rules[0].name).toBe('New Name');
-      expect(rules[0].enabled).toBe(false);
-    });
-
-    it('should return false for non-existent rule', () => {
-      const rules = [
-        {
-          id: 'rule1',
-          name: 'Old Name',
-          enabled: true,
-          threshold: 10,
-          updatedAt: new Date().toISOString(),
-        },
-      ];
-      
-      jest.spyOn(alertsService, 'updateRule').mockImplementation((id: string, updates: any) => {
-        const rule = rules.find(r => r.id === id);
-        if (rule) {
-          Object.assign(rule, updates);
-          rule.updatedAt = new Date().toISOString();
-          return true;
-        }
-        return false;
-      });
-
-      const result = alertsService.updateRule('rule2', { name: 'New Name' });
-      
-      expect(result).toBe(false);
-    });
-  });
-
-  describe('deleteRule', () => {
-    it('should delete existing rule', () => {
-      const rules = [
-        { id: 'rule1', name: 'Rule 1' },
-        { id: 'rule2', name: 'Rule 2' },
-      ];
-      
-      jest.spyOn(alertsService, 'deleteRule').mockImplementation((id: string) => {
-        const index = rules.findIndex(r => r.id === id);
-        if (index !== -1) {
-          rules.splice(index, 1);
-          return true;
-        }
-        return false;
-      });
-
-      const result = alertsService.deleteRule('rule1');
-      
-      expect(result).toBe(true);
-      expect(rules).toHaveLength(1);
-      expect(rules[0].id).toBe('rule2');
-    });
-
-    it('should return false for non-existent rule', () => {
-      const rules = [
-        { id: 'rule1', name: 'Rule 1' },
-        { id: 'rule2', name: 'Rule 2' },
-      ];
-      
-      jest.spyOn(alertsService, 'deleteRule').mockImplementation((id: string) => {
-        const index = rules.findIndex(r => r.id === id);
-        if (index !== -1) {
-          rules.splice(index, 1);
-          return true;
-        }
-        return false;
-      });
-
-      const result = alertsService.deleteRule('rule3');
-      
-      expect(result).toBe(false);
-      expect(rules).toHaveLength(2);
-    });
-  });
-
-  describe('checkRules', () => {
-    it('should trigger alerts based on rules', () => {
-      const rules = [
-        {
-          id: 'rule1',
-          name: 'High CPU Alert',
-          type: 'high-cpu',
-          enabled: true,
-          threshold: 80,
-          condition: 'cpu > 80',
-          channels: ['email'],
-          cooldownMinutes: 5,
-        },
-      ];
-      
-      const alerts: any[] = [];
-      
-      jest.spyOn(alertsService, 'checkRules').mockImplementation((data: any) => {
-        rules.forEach(rule => {
-          if (!rule.enabled) return;
-          
-          // Simple condition evaluation
-          const cpu = data.cpu || 0;
-          if (eval(rule.condition)) {
-            alerts.push({
-              id: `alert-${Date.now()}`,
-              level: 'warning',
-              type: rule.type,
-              message: `${rule.name}: CPU is at ${cpu}%`,
-              timestamp: new Date().toISOString(),
-              acknowledged: false,
-              agentId: data.agentId,
-            });
-          }
-        });
-        
-        return alerts;
-      });
-
-      const result = alertsService.checkRules({ cpu: 90, agentId: 'agent1' });
-      
-      expect(result).toHaveLength(1);
-      expect(result[0].type).toBe('high-cpu');
-      expect(result[0].message).toContain('CPU is at 90%');
-    });
-
-    it('should not trigger alerts for disabled rules', () => {
-      const rules = [
-        {
-          id: 'rule1',
-          name: 'High CPU Alert',
-          type: 'high-cpu',
-          enabled: false, // Disabled rule
-          threshold: 80,
-          condition: 'cpu > 80',
-          channels: ['email'],
-          cooldownMinutes: 5,
-        },
-      ];
-      
-      const alerts: any[] = [];
-      
-      jest.spyOn(alertsService, 'checkRules').mockImplementation((data: any) => {
-        rules.forEach(rule => {
-          if (!rule.enabled) return;
-          
-          const cpu = data.cpu || 0;
-          if (eval(rule.condition)) {
-            alerts.push({
-              id: `alert-${Date.now()}`,
-              level: 'warning',
-              type: rule.type,
-              message: `${rule.name}: CPU is at ${cpu}%`,
-              timestamp: new Date().toISOString(),
-              acknowledged: false,
-              agentId: data.agentId,
-            });
-          }
-        });
-        
-        return alerts;
-      });
-
-      const result = alertsService.checkRules({ cpu: 90, agentId: 'agent1' });
-      
-      expect(result).toHaveLength(0);
     });
   });
 });

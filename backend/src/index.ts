@@ -326,7 +326,5 @@ setInterval(() => {
 export { app }
 
 server.listen(PORT, () => {
-  console.log(`🚀 OpenClaw Monitor API 运行在 http://localhost:${PORT}`)
-  console.log(`📊 健康检查：http://localhost:${PORT}/health`)
-  console.log(`🔌 WebSocket: ws://localhost:${PORT}/ws`)
+  // Server started
 })
