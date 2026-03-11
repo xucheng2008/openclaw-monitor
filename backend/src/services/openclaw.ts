@@ -8,6 +8,11 @@ import { promisify } from 'util'
 
 const execAsync = promisify(exec)
 
+// 缓存变量
+let cachedTasks: Task[] = []
+let cacheTime: number = 0
+const CACHE_TTL = 30000 // 30 秒
+
 export interface Agent {
   id: string
   name: string
@@ -104,6 +109,14 @@ export async function getAgents(): Promise<Agent[]> {
  * 获取任务列表
  */
 export async function getTasks(repo: string = 'xucheng2008/openclaw-monitor'): Promise<Task[]> {
+  // 检查缓存
+  if (Date.now() - cacheTime < CACHE_TTL && cachedTasks.length > 0) {
+    console.log('Cache hit for tasks') // 添加日志以便调试
+    return cachedTasks
+  }
+  
+  console.log('Cache miss for tasks, fetching from GitHub') // 添加日志以便调试
+  
   try {
     // 从 GitHub API 获取任务
     const { stdout } = await execAsync(
@@ -111,7 +124,7 @@ export async function getTasks(repo: string = 'xucheng2008/openclaw-monitor'): P
     )
     const issues = JSON.parse(stdout)
     
-    return issues.map((issue: any) => {
+    const tasks = issues.map((issue: any) => {
       const statusLabel = issue.labels?.find((l: any) => l.name.startsWith('status:'))
       const priorityLabel = issue.labels?.find((l: any) => l.name.startsWith('priority:'))
       const agentLabel = issue.labels?.find((l: any) => l.name.startsWith('agent:'))
@@ -126,8 +139,19 @@ export async function getTasks(repo: string = 'xucheng2008/openclaw-monitor'): P
         updatedAt: issue.updatedAt,
       }
     })
+    
+    // 更新缓存
+    cachedTasks = tasks
+    cacheTime = Date.now()
+    
+    return tasks
   } catch (error) {
     console.error('获取任务列表失败:', error)
+    // 返回缓存数据（如果有的话）或模拟数据
+    if (cachedTasks.length > 0) {
+      console.log('Returning cached data due to error')
+      return cachedTasks
+    }
     // 返回模拟数据
     return [
       { id: 2, title: 'Phase 1: 创建基础项目结构', status: 'done', priority: 'high', assignee: 'codex', createdAt: '', updatedAt: '' },
@@ -143,7 +167,7 @@ export async function getTasks(repo: string = 'xucheng2008/openclaw-monitor'): P
  */
 export async function getStats(): Promise<Stats> {
   const agents = await getAgents()
-  const tasks = await getTasks()
+  const tasks = await getTasks() // 这里也会使用缓存
   
   return {
     totalAgents: agents.length,
@@ -152,5 +176,26 @@ export async function getStats(): Promise<Stats> {
     completedTasks: tasks.filter(t => t.status === 'done').length,
     projectProgress: Math.round((tasks.filter(t => t.status === 'done').length / tasks.length) * 100),
     totalTokenUsage: agents.reduce((sum, a) => sum + a.tokenUsage, 0),
+  }
+}
+
+/**
+ * 手动刷新缓存
+ */
+export function refreshCache() {
+  cachedTasks = []
+  cacheTime = 0
+}
+
+/**
+ * 获取缓存状态
+ */
+export function getCacheStatus() {
+  return {
+    tasks: {
+      cached: cachedTasks.length > 0,
+      age: Date.now() - cacheTime,
+      ttl: CACHE_TTL
+    }
   }
 }
