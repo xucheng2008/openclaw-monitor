@@ -322,6 +322,9 @@ setInterval(() => {
   checkRules({})
 }, 5 * 60 * 1000)
 
+// 导出 app 用于测试
+export { app }
+
 server.listen(PORT, () => {
   console.log(`🚀 OpenClaw Monitor API 运行在 http://localhost:${PORT}`)
   console.log(`📊 健康检查：http://localhost:${PORT}/health`)
