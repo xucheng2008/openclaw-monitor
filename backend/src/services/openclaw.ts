@@ -182,9 +182,29 @@ export async function getStats(): Promise<Stats> {
 /**
  * 手动刷新缓存
  */
-export function refreshCache() {
+export async function refreshCache(): Promise<void> {
   cachedTasks = []
   cacheTime = 0
+  await getTasks() // 这会重新填充缓存
+  console.log('缓存刷新完成')
+}
+
+// 后台定时刷新（每 5 分钟）
+const REFRESH_INTERVAL = 5 * 60 * 1000 // 5 分钟
+
+export function startBackgroundRefresh(): void {
+  // 启动时立即刷新
+  refreshCache()
+  
+  // 定时刷新
+  setInterval(async () => {
+    try {
+      await refreshCache()
+      console.log('缓存已刷新:', new Date().toISOString())
+    } catch (error) {
+      console.error('刷新缓存失败:', error)
+    }
+  }, REFRESH_INTERVAL)
 }
 
 /**

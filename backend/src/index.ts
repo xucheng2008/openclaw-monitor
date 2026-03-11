@@ -1,6 +1,7 @@
 import express from 'express'
 import cors from 'cors'
 import { createServer } from 'http'
+import { performanceLogger } from './middleware/performance'
 import { getAgents, getTasks, getStats } from './services/openclaw'
 import { getIssues, getTaskIssues, getRecentActivity, syncData } from './services/github'
 import { wsService } from './services/websocket'
@@ -148,6 +149,14 @@ app.post('/api/github/sync', async (req, res) => {
   } catch (error) {
     res.status(500).json({ error: '同步数据失败' })
   }
+})
+
+// 性能指标 API
+app.get('/api/performance/metrics', (req, res) => {
+  res.json({
+    metrics: getMetrics().slice(-100), // 最近 100 条
+    slowRequests: getSlowRequests()
+  })
 })
 
 // 健康检查
